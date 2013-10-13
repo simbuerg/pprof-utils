@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+import argparse
+import subprocess
+import tempfile
+import os
+import sys
+import traceback
+import pprof
+
+def parseArguments():
+  description = 'pprof-ar is a simple replacement for ar.'
+
+  parser = argparse.ArgumentParser(description=description)
+  parser.add_argument('-commands', help='print command lines executed',
+                      action='store_true')
+  parser.add_argument('flags')
+  parser.add_argument('outFile')
+  parser.add_argument('files', nargs='*')
+  arguments, argv = parser.parse_known_args()
+
+  return arguments
+
+def main():
+  global pprof.PLUGIN
+  args = parseArguments()
+
+  commandLine = ['ar', args.flags, '--plugin', PLUGIN, args.outFile] + args.files
+  log_exec(args, commandLine, 'Invoke native AR')
+
+if __name__ == '__main__':
+  main()
