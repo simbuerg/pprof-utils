@@ -160,7 +160,7 @@ def link(ir, args, flags):
   out = getOutput(args)
   assembly = ir + '.s'
 
-  commandLine = ['llc', '-O0', ir]
+  commandLine = ['llc', '-O0', ir, '-o', assembly]
   if args.fPIC:
     commandLine += ['-relocation-model=pic']
 
