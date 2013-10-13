@@ -145,7 +145,6 @@ def getOutput(args):
   return outFile
 
 def link(ir, args, flags):
-  global LD_PATH
   default_flags = ["-L/usr/lib/gcc/x86_64-linux-gnu/4.6",
                    "-L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../x86_64-linux-gnu",
                    "-L/lib/x86_64-linux-gnu",

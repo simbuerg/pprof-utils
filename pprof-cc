@@ -87,10 +87,9 @@ def cc(args):
   else:
     ir = pprof.link_ir(args, flags)
 
-  ir = pprof.optimize_ir(ir,args)
-  ir = pprof.instrument_ir(ir,args)
+#  ir = pprof.optimize_ir(ir,args)
 
-  if FORTRAN:
+  if pprof.FORTRAN:
     pprof.link_fortran(ir,args, flags)
   else:
     pprof.link(ir,args, flags)
