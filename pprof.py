@@ -45,10 +45,10 @@ def log_exec(args, commandLine, msg, failOnErr = True, toFile = True):
   indent = '  ' * (level-5)
 
   if args.prg:
-    print indent + '\033[1;31m[ '+ msg +' ]\033[1;m'
+    print >> sys.stderr, indent + '\033[1;31m[ '+ msg +' ]\033[1;m'
 
   if args.commands:
-    print indent + '\033[1;36m' + ' '.join(commandLine) + '\033[1;m'
+    print >> sys.stderr, indent + '\033[1;36m' + ' '.join(commandLine) + '\033[1;m'
 
   if toFile:
     fn = getOutput(args) + '.pprof'
@@ -64,8 +64,8 @@ def log_exec(args, commandLine, msg, failOnErr = True, toFile = True):
 
   exit = subprocess.call(commandLine)
   if exit:
-    print indent + '\033[1;36m' + msg + ' FAILED. This command did not work:\033[1;m'
-    print indent + '\033[1;36m' + ' '.join(commandLine) + '\033[1;m'
+    print >> sys.stderr, indent + '\033[1;36m' + msg + ' FAILED. This command did not work:\033[1;m'
+    print >> sys.stderr, indent + '\033[1;36m' + ' '.join(commandLine) + '\033[1;m'
 
     if failOnErr:
       sys.exit(1)
