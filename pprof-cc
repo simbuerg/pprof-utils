@@ -77,8 +77,8 @@ def cc_c(args):
 def cc(args):
   libs = args.libraries
   lp = args.librarypath
-  linkerFlags = ['-l' + x for x in libs] + LD_FLAGS
-  libraryPath = ['-Wl,-L' + x for x in lp] + LD_PATH 
+  linkerFlags = ['-l' + x for x in libs] + pprof.LD_FLAGS
+  libraryPath = ['-Wl,-L' + x for x in lp] + pprof.LD_PATH 
 
   flags = linkerFlags + libraryPath
 
@@ -181,7 +181,7 @@ def main():
   if sys.argv[0].endswith('++'):
     pprof.GCC='g++'
     pprof.CLANG='clang++'
-    pprof.LD_FLAGS=LD_FLAGS + ['-lstdc++']
+    pprof.LD_FLAGS=pprof.LD_FLAGS + ['-lstdc++']
 
   if args.M or args.MD or args.MM or \
      args.MMD or args.MT or args.MF or args.MP:
