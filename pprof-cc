@@ -108,7 +108,7 @@ def compile_no_link(args, flags):
   if args.output:
     out = args.output
   elif args.c and len(args.files) == 1:
-    out = os.path.splitext(args.files[0])
+    out = os.path.splitext(args.files[0])[0]
     out = os.path.basename(out) + '.o'
 
   if out:
