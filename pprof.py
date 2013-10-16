@@ -95,7 +95,7 @@ def link_ir(args, flags):
   global LD_PATH 
   
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath = ['-L' + x for x in args.librarypath] + LD_PATH 
+  lpath  = ['-L' + x for x in args.librarypath] + LD_PATH 
   
   # Sanity check our env
   if not 'PPROF_LLVMGOLD' in os.environ:
@@ -104,8 +104,9 @@ def link_ir(args, flags):
   goldplugin = os.environ['PPROF_LLVMGOLD']
 
   # Order of linker flags MATTERS!!! don't swap args.files & args.unknown_args
-  commandLine = [clang() , '-Wl,-plugin,'+goldplugin+',-plugin-opt,emit-llvm',
-                 '-o', out] + args.files + lflags + lpath + \
+  commandLine = [clang() , '-Xclang', '-emit-llvm-bc', '-Wl,-plugin,' + \
+                 goldplugin+',-plugin-opt,emit-llvm', '-o', out] + \
+                 args.files + lflags + lpath + \
                  args.unknown_args + LD_PATH + flags
   log_exec(args, commandLine, 'Linking BITCODE (unoptimized)')
 
@@ -145,15 +146,6 @@ def getOutput(args):
   return outFile
 
 def link(ir, args, flags):
-  default_flags = ["-L/usr/lib/gcc/x86_64-linux-gnu/4.6",
-                   "-L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../../x86_64-linux-gnu",
-                   "-L/lib/x86_64-linux-gnu",
-                   "-L/lib/../lib64",
-                   "-L/usr/lib/x86_64-linux-gnu/",
-                   "-L/usr/lib/gcc/x86_64-linux-gnu/4.6/../../..",
-                   "-L/lib",
-                   "-L/usr/lib"]
-
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
   lpath = ['-L' + x for x in args.librarypath] + LD_PATH 
 
@@ -161,15 +153,13 @@ def link(ir, args, flags):
   assembly = ir + '.s'
 
   commandLine = ['llc', '-O0', ir, '-o', assembly]
-  if args.fPIC:
+  if args.fPIC or args.fpic:
     commandLine += ['-relocation-model=pic']
 
   log_exec(args, commandLine, 'Generating assembly')
 
   commandLine = [gcc(), assembly, '-o', out] + \
-                 args.unknown_args +\
-                 lflags + lpath + default_flags +\
-                 LD_PATH
+                 args.unknown_args + lflags + lpath + LD_PATH
 
   log_exec(args, commandLine, 'Generating final output')
   return args.output
@@ -185,8 +175,7 @@ def link_fortran(ir, args, flags):
   commandLine = ['llc', ir]
   log_exec(args, commandLine, 'Generating assembly')
 
-  commandLine = ['gfortran', assembly, '-o', out] + \
-                 lflags + lpath + LD_PATH
+  commandLine = ['gfortran', assembly, '-o', out] + lflags + lpath + LD_PATH
 
   log_exec(args, commandLine, 'Generating final output')
   return args.output

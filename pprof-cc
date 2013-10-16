@@ -14,9 +14,10 @@ def parseArguments():
                 'gcc, clang or icc.'
 
   parser = argparse.ArgumentParser(description=description)
-  parser.add_argument('files'    , nargs='+')
+  parser.add_argument('files'    , nargs='*')
   parser.add_argument('-o'       , dest='output',
-                                   help='the name of the output file')
+                                   help='the name of the output file',
+                                   required=False)
   parser.add_argument('-include' , action='append',
                                    dest='extra_includes',
                                    default=[],
@@ -34,6 +35,8 @@ def parseArguments():
                                    required=False)
   parser.add_argument('-fPIC'    , action='store_true',
                                    help='Position-Independent Code')
+  parser.add_argument('-fpic'    , action='store_true',
+                                   help='Position-Independent Code')
   parser.add_argument('-prg'     , action='store_true',
                                    help='Show the compilation progress')
   parser.add_argument('-c'       , action='store_true',
@@ -44,7 +47,7 @@ def parseArguments():
                                    help='dependencies target')
   parser.add_argument('-MT'      , action='store_true',
                                    help='dependencies target')
-  parser.add_argument('-MF'      , action='store_true',
+  parser.add_argument('-MF'      , dest='depfile',
                                    help='dependencies file')
   parser.add_argument('-MMD'     , action='store_true',
                                    help='create dependencies (implies -E)')
@@ -102,7 +105,12 @@ def compile_no_link(args, flags):
   else:
     implicitIncludes = ['-include' + x for x in args.extra_includes]
     commandLine = [pprof.CLANG, '-c', '-emit-llvm'] + \
-                  implicitIncludes + args.unknown_args + args.files
+                  implicitIncludes
+    if args.M:
+      commandLine = commandLine + ['-M']
+    if args.depfile:
+      commandLine = commandLine + ['-MF', args.depfile]
+    commandLine = commandLine + args.unknown_args + args.files
 
   out = ''
   if args.output:
@@ -172,6 +180,10 @@ def print_version(args):
 def main():
   args = parseArguments()
 
+  # PWN configure scripts:
+  if (args.version):
+    return print_version(args)
+
   # Fortran
   if sys.argv[0].endswith('fortran'):
     pprof.FORTRAN = True
@@ -183,7 +195,7 @@ def main():
     pprof.LD_FLAGS=pprof.LD_FLAGS + ['-lstdc++']
 
   if args.M or args.MD or args.MM or \
-     args.MMD or args.MT or args.MF or args.MP:
+     args.MMD or args.MT or args.MP:
     createDeps(args)
 
   if not (args.M or args.MM):
