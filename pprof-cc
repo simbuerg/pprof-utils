@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 
 import argparse
 import subprocess
@@ -121,11 +121,9 @@ def compile_no_link(args, flags):
 
   if out:
     commandLine = commandLine + ['-o', out]
-    pprof.log_exec(args, commandLine, 'Creating BITCODE (unoptimized)')
-
-  if out:
-    commandLine = ['opt', out, '-o', out]
-    pprof.log_exec(args, commandLine, 'Creating bitcode')
+    if pprof.log_exec(args, commandLine, 'Creating BITCODE (unoptimized)', False):
+      commandLine = ['opt', out, '-o', out]
+      pprof.log_exec(args, commandLine, 'Creating bitcode', False)
   return args.output
 
 # Create Makefile dependencies. clang is not capable of doing it, so we just

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 import argparse
 import subprocess
 import tempfile
@@ -68,8 +68,13 @@ def log_exec(args, commandLine, msg, failOnErr = True, toFile = True):
     print >> sys.stderr, indent + '\033[1;36m' + ' '.join(commandLine) + '\033[1;m'
 
     if failOnErr:
-      sys.exit(1)
-
+      sys.exit(exit)
+    
+    margv = sys.argv
+    margv[0] = gcc() 
+    commandLine = margv
+    exit = subprocess.call(commandLine)
+  
   return exit
 
 # Preprocess the programm such that as many optimization opportunities
