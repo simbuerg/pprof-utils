@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import tempfile
 import os
+import os.path
 import sys
 import traceback
 
@@ -10,6 +11,12 @@ PREFIX = '[PP] '
 GCC = 'gcc'
 CLANG = 'clang'
 PLUGIN = os.environ['PPROF_LLVMGOLD']
+
+if "PPROF_LLVM_BINARY_PREFIX" in os.environ:
+    LLVM_BINARY_PREFIX = os.environ['PPROF_LLVM_BINARY_PREFIX']
+else:
+    LLVM_BINARY_PREFIX = ""
+
 FORTRAN = False
 
 LD_PATH = []
@@ -17,11 +24,12 @@ LD_FLAGS = []
 
 def clang():
   global CLANG
+  global LLVM_BINARY_PREFIX
 
-  clng = CLANG
+  clng = os.path.join(LLVM_BINARY_PREFIX, CLANG)
   # C or C++?
   if sys.argv[0].endswith('++') or '-cpp' in sys.argv:
-    clng = 'clang++'
+    clng = os.path.join(LLVM_BINARY_PREFIX, 'clang++')
 
   return clng
 
@@ -69,12 +77,12 @@ def log_exec(args, commandLine, msg, failOnErr = True, toFile = True):
 
     if failOnErr:
       sys.exit(exit)
-    
+
     margv = sys.argv
-    margv[0] = gcc() 
+    margv[0] = gcc()
     commandLine = margv
     exit = subprocess.call(commandLine)
-  
+
   return exit
 
 # Preprocess the programm such that as many optimization opportunities
@@ -97,11 +105,11 @@ def optimize_ir(file, args):
 def link_ir(args, flags):
   outFile = getOutput(args)
   out = os.path.splitext(outFile)[0] + '.bc'
-  global LD_PATH 
-  
+  global LD_PATH
+
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath  = ['-L' + x for x in args.librarypath] + LD_PATH 
-  
+  lpath  = ['-L' + x for x in args.librarypath] + LD_PATH
+
   # Sanity check our env
   if not 'PPROF_LLVMGOLD' in os.environ:
     sys.exit('LLVMGold library not provided. Please set PPROF_LLVMGOLD' + \
@@ -121,10 +129,11 @@ def link_ir_fortran(args, flags):
   outFile = getOutput(args)
   out = os.path.splitext(outFile)[0] + '.bc'
   global LD_PATH
+  global LLVM_BINARY_PREFIX
 
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath = ['-L' + x for x in args.librarypath] + LD_PATH 
-  
+  lpath = ['-L' + x for x in args.librarypath] + LD_PATH
+
   # Sanity check our env
   if not 'PPROF_LLVMGOLD' in os.environ:
     sys.exit('LLVMGold library not provided. Please set PPROF_LLVMGOLD' + \
@@ -137,7 +146,7 @@ def link_ir_fortran(args, flags):
                  args.unknown_args + LD_PATH + flags
   log_exec(args, commandLine, 'Linking human-readable bitcode (unoptimized)')
 
-  commandLine = ['opt', out, '-o', out] 
+  commandLine = [os.path.join(LLVM_BINARY_PREFIX, 'opt'), out, '-o', out]
   log_exec(args, commandLine, 'Creating bitcode')
   return out
 
@@ -152,7 +161,7 @@ def getOutput(args):
 
 def link(ir, args, flags):
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath = ['-L' + x for x in args.librarypath] + LD_PATH 
+  lpath = ['-L' + x for x in args.librarypath] + LD_PATH
 
   out = getOutput(args)
   assembly = ir + '.s'
@@ -173,7 +182,7 @@ def link_fortran(ir, args, flags):
   global LD_PATH
 
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath = ['-L' + x for x in args.librarypath] + LD_PATH 
+  lpath = ['-L' + x for x in args.librarypath] + LD_PATH
 
   out = getOutput(args)
   assembly = ir + '.s'
