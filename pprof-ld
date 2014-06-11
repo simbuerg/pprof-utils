@@ -28,6 +28,10 @@ def parseArguments():
                       help='library paths to pass to the linker')
   parser.add_argument('-x', action='store_true',
                       help='strip all local symbols')
+  parser.add_argument('-fPIC'    , action='store_true',
+                                   help='Position-Independent Code')
+  parser.add_argument('-fpic'    , action='store_true',
+                                   help='Position-Independent Code')
   parser.add_argument('-o', dest='output', help='the name of the output file')
   arguments, argv = parser.parse_known_args()
   
@@ -52,7 +56,9 @@ def main():
     exit(0)
 
   ir = pprof.link_ir(args, [])
-  pprof.link(ir, args, [])
+  
+  #pprof.link(ir, args, [])
+  pprof.link_fortran(ir, args, [])
 
 if __name__ == '__main__':
   main()

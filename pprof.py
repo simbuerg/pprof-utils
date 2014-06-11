@@ -27,6 +27,7 @@ def clang():
   global LLVM_BINARY_PREFIX
 
   clng = os.path.join(LLVM_BINARY_PREFIX, CLANG)
+  clng = CLANG
   # C or C++?
   if sys.argv[0].endswith('++') or '-cpp' in sys.argv:
     clng = os.path.join(LLVM_BINARY_PREFIX, 'clang++')
@@ -131,6 +132,8 @@ def link_ir_fortran(args, flags):
   global LD_PATH
   global LLVM_BINARY_PREFIX
 
+
+
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
   lpath = ['-L' + x for x in args.librarypath] + LD_PATH
 
@@ -145,11 +148,12 @@ def link_ir_fortran(args, flags):
                  '-o', out] + args.files + lflags + lpath + \
                  args.unknown_args + LD_PATH + flags
   log_exec(args, commandLine, 'Linking human-readable bitcode (unoptimized)')
+  
+
 
   commandLine = [os.path.join(LLVM_BINARY_PREFIX, 'opt'), out, '-o', out]
   log_exec(args, commandLine, 'Creating bitcode')
   return out
-
 
 def getOutput(args):
   if args.output and len(args.output) > 0:
@@ -188,6 +192,7 @@ def link_fortran(ir, args, flags):
   assembly = ir + '.s'
   commandLine = ['llc', ir]
   log_exec(args, commandLine, 'Generating assembly')
+  
 
   commandLine = ['gfortran', assembly, '-o', out] + lflags + lpath + LD_PATH
 

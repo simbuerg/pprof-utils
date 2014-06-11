@@ -84,13 +84,7 @@ def cc(args):
   libraryPath = ['-Wl,-L' + x for x in lp] + pprof.LD_PATH 
 
   flags = linkerFlags + libraryPath
-
-  if pprof.FORTRAN:
-    ir = pprof.link_ir_fortran(args, flags)
-  else:
-    ir = pprof.link_ir(args, flags)
-
-#  ir = pprof.optimize_ir(ir,args)
+  ir = pprof.link_ir(args, flags)
 
   if pprof.FORTRAN:
     pprof.link_fortran(ir,args, flags)
@@ -99,9 +93,9 @@ def cc(args):
 
 def compile_no_link(args, flags):
   if pprof.FORTRAN:
-    commandLine = ['gfortran', '-fplugin=dragonegg', \
+    commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so', \
                    '-fplugin-arg-dragonegg-emit-ir', \
-                   '-S', '-c'] + args.unknown_args + args.files
+                   '-S'] + args.unknown_args + args.files
   else:
     implicitIncludes = ['-include' + x for x in args.extra_includes]
     commandLine = [pprof.clang(), '-c', '-emit-llvm'] + \
@@ -121,9 +115,10 @@ def compile_no_link(args, flags):
 
   if out:
     commandLine = commandLine + ['-o', out]
-    if pprof.log_exec(args, commandLine, 'Creating BITCODE (unoptimized)', False):
-      commandLine = ['opt', out, '-o', out]
-      pprof.log_exec(args, commandLine, 'Creating bitcode', False)
+    pprof.log_exec(args, commandLine, 'Creating BITCODE (unoptimized)', False)
+    
+    commandLine = ['opt', out, '-o', out]
+    pprof.log_exec(args, commandLine, 'Creating bitcode', False)
   return args.output
 
 # Create Makefile dependencies. clang is not capable of doing it, so we just
@@ -190,7 +185,7 @@ def main():
   if sys.argv[0].endswith('++'):
     pprof.GCC='g++'
     pprof.CLANG='clang++'
-    pprof.LD_FLAGS=pprof.LD_FLAGS + ['-lstdc++']
+    pprof.LD_FLAGS=pprof.LD_FLAGS #+ ['-lstdc++']
 
   if args.M or args.MD or args.MM or \
      args.MMD or args.MT or args.MP:
