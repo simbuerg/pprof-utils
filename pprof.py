@@ -34,6 +34,67 @@ def clang():
 
   return clng
 
+class Clang(object):
+    def __init__(self, args = None):
+      # Sanity check our env
+      if not 'LIBPOLLY' in os.environ:
+        sys.exit('Polly library not provided. Please set LIBPOLLY environment ' + \
+                 'variable to the LLVMPolly.so file')
+      if not 'PPROF_LLVMGOLD' in os.environ:
+        sys.exit('LLVMGold library not provided. Please set PPROF_LLVMGOLD' + \
+                 'environment variable to the LLVMGold.so file')
+
+      self.polly = os.environ['LIBPOLLY']
+      self.clang = clang()
+      self.gold  = os.environ['PPROF_LLVMGOLD']
+
+      if args:
+        self.lflags = ['-l' + x for x in args.libraries]
+        self.lpath  = ['-L' + x for x in args.librarypath]
+        self.cflags = ['-I' + x for x in args.incdirs]
+        self.files  = args.files
+        self.other  = args.unknown_args
+        self.fpic   = args.fPIC or args.fpic
+
+
+    def ir(self, ifile, ofile):
+      return [self.clang, '-Xclang', '-load', '-Xclang', self.__polly, '-O0',
+                          '-mllvm', '-polly', '-S', '-emit-llvm'] + \
+             [ifile, '-o', ofile]
+
+    def linkIR(self, ifile = None, ofile = None, extraFlags = None):
+      # Order of linker flags MATTERS!!! don't swap args.files & args.unknown_args
+      commandLine = [
+                     self.clang ,
+                     '-Xclang',
+                     '-emit-llvm-bc',
+                     '-Wl,-plugin,' + self.gold +',-plugin-opt,emit-llvm',
+                     '-o', ofile
+                    ] + \
+                    self.files + self.cflags + self.lflags + self.lpath + \
+                    self.other
+
+      if extraFlags:
+        commandLine += extraFlags
+
+      return commandLine
+
+    def link(self, ifile = None, ofile = None):
+      commandLine = ['llc', '-O0', ifile, '-o', ofile]
+
+      if self.fpic:
+        commandLine += ['-relocation-model=pic']
+
+      return commandLine
+
+    def assemble(self, ifile = None, ofile = None):
+      commandLine = [self.clang, ifile, '-o', ofile] + \
+                     self.other + \
+                     self.lflags + \
+                     self.lpath
+
+      return commandLine
+
 def gcc():
   global GCC
 
@@ -90,39 +151,18 @@ def log_exec(args, commandLine, msg, failOnErr = True, toFile = True):
 # as possible are exposed.
 def optimize_ir(file, args):
   preoptFile = os.path.splitext(file)[0] + '.opt'
-
-  # Sanity check our env
-  if not 'LIBPOLLY' in os.environ:
-    sys.exit('Polly library not provided. Please set LIBPOLLY environment ' + \
-             'variable to the LLVMPolly.so file')
-  polly = os.environ['LIBPOLLY']
-
-  commandLine = [clang(), '-Xclang', '-load', '-Xclang', polly, '-O0', '-mllvm',
-                          '-polly', '-S', '-emit-llvm'] + [file, '-o', preoptFile]
+  commandLine = Clang().ir(file, preoptFile)
   exit = log_exec(args, commandLine, 'Preoptimizing to expose optimization opportunities', False)
 
   return preoptFile
 
 def link_ir(args, flags):
-  outFile = getOutput(args)
-  out = os.path.splitext(outFile)[0] + '.bc'
-  global LD_PATH
+  out = os.path.splitext(getOutput(args))[0] + '.bc'
 
-  lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath  = ['-L' + x for x in args.librarypath] + LD_PATH
-
-  # Sanity check our env
-  if not 'PPROF_LLVMGOLD' in os.environ:
-    sys.exit('LLVMGold library not provided. Please set PPROF_LLVMGOLD' + \
-             'environment variable to the LLVMGold.so file')
-  goldplugin = os.environ['PPROF_LLVMGOLD']
-
-  # Order of linker flags MATTERS!!! don't swap args.files & args.unknown_args
-  commandLine = [clang() , '-Xclang', '-emit-llvm-bc', '-Wl,-plugin,' + \
-                 goldplugin+',-plugin-opt,emit-llvm', '-o', out] + \
-                 args.files + lflags + lpath + \
-                 args.unknown_args + LD_PATH + flags
-  log_exec(args, commandLine, 'Linking BITCODE (unoptimized)')
+  clang = Clang(args)
+  commandLine = clang.linkIR(None, out, flags)
+  log_exec(args, commandLine,
+      'Linking BITCODE (unoptimized)')
 
   return out
 
@@ -131,8 +171,6 @@ def link_ir_fortran(args, flags):
   out = os.path.splitext(outFile)[0] + '.bc'
   global LD_PATH
   global LLVM_BINARY_PREFIX
-
-
 
   lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
   lpath = ['-L' + x for x in args.librarypath] + LD_PATH
@@ -148,7 +186,7 @@ def link_ir_fortran(args, flags):
                  '-o', out] + args.files + lflags + lpath + \
                  args.unknown_args + LD_PATH + flags
   log_exec(args, commandLine, 'Linking human-readable bitcode (unoptimized)')
-  
+
 
 
   commandLine = [os.path.join(LLVM_BINARY_PREFIX, 'opt'), out, '-o', out]
@@ -163,23 +201,18 @@ def getOutput(args):
 
   return outFile
 
-def link(ir, args, flags):
-  lflags = ['-l' + x for x in args.libraries] + LD_FLAGS
-  lpath = ['-L' + x for x in args.librarypath] + LD_PATH
-
+def link(ir, args):
   out = getOutput(args)
   assembly = ir + '.s'
 
-  commandLine = ['llc', '-O0', ir, '-o', assembly]
-  if args.fPIC or args.fpic:
-    commandLine += ['-relocation-model=pic']
+  clang = Clang(args)
 
+  commandLine = clang.link(ir, assembly)
   log_exec(args, commandLine, 'Generating assembly')
 
-  commandLine = [gcc(), assembly, '-o', out] + \
-                 args.unknown_args + lflags + lpath + LD_PATH
-
+  commandLine = clang.assemble(assembly, out)
   log_exec(args, commandLine, 'Generating final output')
+
   return args.output
 
 def link_fortran(ir, args, flags):
@@ -192,7 +225,7 @@ def link_fortran(ir, args, flags):
   assembly = ir + '.s'
   commandLine = ['llc', ir]
   log_exec(args, commandLine, 'Generating assembly')
-  
+
 
   commandLine = ['gfortran', assembly, '-o', out] + lflags + lpath + LD_PATH
 
