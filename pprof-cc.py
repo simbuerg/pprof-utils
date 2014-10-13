@@ -1,17 +1,18 @@
 #!/usr/bin/env python2.7
-
 import argparse
 import subprocess
-import tempfile
 import os
 import sys
-import traceback
-import pprof
 
-# Parse input arguments.
+import pprof
 
 
 def parseArguments():
+    """
+
+
+    :return:
+    """
     description = 'polly-profcc is a simple replacement for compiler drivers like ' \
                   'gcc, clang or icc.'
 
@@ -47,20 +48,6 @@ def parseArguments():
                         help='Show the compilation progress')
     parser.add_argument('-c', action='store_true',
                         help='compile and assemble, but do not link')
-    parser.add_argument('-MM', action='store_true',
-                        help='dependencies file')
-    parser.add_argument('-MP', action='store_true',
-                        help='dependencies target')
-    parser.add_argument('-MT', action='store_true',
-                        help='dependencies target')
-    parser.add_argument('-MF', dest='depfile',
-                        help='dependencies file')
-    parser.add_argument('-MMD', action='store_true',
-                        help='create dependencies (implies -E)')
-    parser.add_argument('-MD', action='store_true',
-                        help='create dependencies (implies -E)')
-    parser.add_argument('-M', action='store_true',
-                        help='create dependencies')
     parser.add_argument('-commands', help='print command lines executed',
                         action='store_true')
     parser.add_argument('-v', '--version', dest='version', action='store_true',
@@ -76,18 +63,22 @@ def parseArguments():
 
     return arguments
 
-# Compile, no pprof.linking
-
 
 def cc_c(args):
+    """
+
+    :param args:
+    """
     libs = args.libraries
     flags = []
     compile_no_link(args, flags)
 
-# Default compilation
-
 
 def cc(args):
+    """
+
+    :param args:
+    """
     ir = pprof.link_ir(args, None)
 
     if pprof.FORTRAN:
@@ -97,6 +88,12 @@ def cc(args):
 
 
 def compile_no_link(args, flags):
+    """
+
+    :param args:
+    :param flags:
+    :return:
+    """
     if pprof.FORTRAN:
         commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so',
                        '-fplugin-arg-dragonegg-emit-ir',
@@ -104,7 +101,7 @@ def compile_no_link(args, flags):
     else:
         implicitIncludes = ['-include' + x for x in args.extra_includes]
         commandLine = [pprof.clang(), '-c', '-emit-llvm'] + \
-            implicitIncludes
+                      implicitIncludes
         if args.M:
             commandLine = commandLine + ['-M']
         if args.depfile:
@@ -127,11 +124,12 @@ def compile_no_link(args, flags):
         pprof.log_exec(args, commandLine, 'Creating bitcode', False)
     return args.output
 
-# Create Makefile dependencies. clang is not capable of doing it, so we just
-# invoke GCC and continue our normale execution.
-
 
 def createDeps(args):
+    """
+
+    :param args:
+    """
     margv = sys.argv
     margv[0] = pprof.GCC
     commandLine = margv
@@ -143,10 +141,12 @@ def createDeps(args):
 
     pprof.log_exec(args, commandLine, 'Create Makefile dependencies', False)
 
-# Basic executable check if Polly / Clang and LLC are in our range
-
 
 def checkExecutables(pollyLib):
+    """
+
+    :param pollyLib:
+    """
     commandLine = ['opt', '-load', pollyLib, '-help']
     try:
         proc = subprocess.Popen(commandLine, stdout=subprocess.PIPE,
@@ -156,8 +156,10 @@ def checkExecutables(pollyLib):
         if not stdout_value.count('polly-prepare'):
             sys.exit('Polly support not available in opt')
     except OSError:
-        print 'error: opt cannot be executed: '
-        print 'failing command: \n' + " ".join(commandLine)
+        print
+        'error: opt cannot be executed: '
+        print
+        'failing command: \n' + " ".join(commandLine)
         sys.exit(1)
 
     commandLine = [pprof.clang(), '-v']
@@ -165,8 +167,10 @@ def checkExecutables(pollyLib):
         subprocess.call(
             commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
-        print 'error: clang cannot be executed: '
-        print 'failing command: \n' + " ".join(commandLine)
+        print
+        'error: clang cannot be executed: '
+        print
+        'failing command: \n' + " ".join(commandLine)
         sys.exit(1)
 
     commandLine = ['llc', '-help']
@@ -174,17 +178,28 @@ def checkExecutables(pollyLib):
         subprocess.call(
             commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except OSError:
-        print 'error: llc cannot be executed: '
-        print 'failing command: \n' + " ".join(commandLine)
+        print
+        'error: llc cannot be executed: '
+        print
+        'failing command: \n' + " ".join(commandLine)
         sys.exit(1)
 
 
 def print_version(args):
+    """
+
+    :param args:
+    """
     pprof.log_exec(args, [pprof.GCC, '--version'],
                    'Version check pass-through', False)
 
 
 def main():
+    """
+
+
+    :return:
+    """
     args = parseArguments()
 
     # PWN configure scripts:
@@ -201,15 +216,12 @@ def main():
         pprof.CLANG = 'clang++'
         pprof.LD_FLAGS = pprof.LD_FLAGS  # + ['-lstdc++']
 
-    if args.M or args.MD or args.MM or \
-       args.MMD or args.MT or args.MP:
-        createDeps(args)
-
     if not (args.M or args.MM):
         if args.c:
             cc_c(args)
         else:
             cc(args)
+
 
 if __name__ == '__main__':
     main()

@@ -1,12 +1,9 @@
 #!/usr/bin/env python2.7
 
 import argparse
-import subprocess
-import tempfile
-import os
-import sys
-import traceback
+
 import pprof
+
 
 LD = 'ld.gold'
 LD_PATH = []
@@ -61,8 +58,9 @@ def main():
 
     ir = pprof.link_ir(args, [])
 
-    #pprof.link(ir, args, [])
+    # pprof.link(ir, args, [])
     pprof.link_fortran(ir, args, [])
+
 
 if __name__ == '__main__':
     main()
