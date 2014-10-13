@@ -1,7 +1,6 @@
 #!/usr/bin/env python2.7
 
 import argparse
-
 import pprof
 
 
@@ -26,8 +25,7 @@ def parseArguments():
 def main():
     args = parseArguments()
 
-    commandLine = ['ar', args.flags, '--plugin',
-                   pprof.PLUGIN, args.outFile] + args.files
+    commandLine = ['ar', args.flags, args.outFile] + args.files
     pprof.log_exec(args, commandLine, 'Invoke native AR')
 
 

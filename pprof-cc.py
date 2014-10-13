@@ -1,6 +1,5 @@
 #!/usr/bin/env python2.7
 import argparse
-import subprocess
 import os
 import sys
 
@@ -64,29 +63,6 @@ def parseArguments():
     return arguments
 
 
-def cc_c(args):
-    """
-
-    :param args:
-    """
-    libs = args.libraries
-    flags = []
-    compile_no_link(args, flags)
-
-
-def cc(args):
-    """
-
-    :param args:
-    """
-    ir = pprof.link_ir(args, None)
-
-    if pprof.FORTRAN:
-        pprof.link_fortran(ir, args)
-    else:
-        pprof.link(ir, args)
-
-
 def compile_no_link(args, flags):
     """
 
@@ -94,19 +70,11 @@ def compile_no_link(args, flags):
     :param flags:
     :return:
     """
-    if pprof.FORTRAN:
-        commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so',
-                       '-fplugin-arg-dragonegg-emit-ir',
-                       '-S'] + args.unknown_args + args.files
-    else:
-        implicitIncludes = ['-include' + x for x in args.extra_includes]
-        commandLine = [pprof.clang(), '-c', '-emit-llvm'] + \
-                      implicitIncludes
-        if args.M:
-            commandLine = commandLine + ['-M']
-        if args.depfile:
-            commandLine = commandLine + ['-MF', args.depfile]
-        commandLine = commandLine + args.unknown_args + args.files
+    includes = ['-include' + x for x in args.extra_includes] + \
+               ['-I' + x for x in args.incdirs]
+
+    commandLine = [pprof.clang(), '-c', '-emit-llvm'] + includes
+    commandLine = commandLine + args.unknown_args + args.files
 
     out = ''
     if args.output:
@@ -123,66 +91,6 @@ def compile_no_link(args, flags):
         commandLine = ['opt', out, '-o', out]
         pprof.log_exec(args, commandLine, 'Creating bitcode', False)
     return args.output
-
-
-def createDeps(args):
-    """
-
-    :param args:
-    """
-    margv = sys.argv
-    margv[0] = pprof.GCC
-    commandLine = margv
-
-    if args.prg:
-        margv.remove('-prg')
-    if args.commands:
-        margv.remove('-commands')
-
-    pprof.log_exec(args, commandLine, 'Create Makefile dependencies', False)
-
-
-def checkExecutables(pollyLib):
-    """
-
-    :param pollyLib:
-    """
-    commandLine = ['opt', '-load', pollyLib, '-help']
-    try:
-        proc = subprocess.Popen(commandLine, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        stdout_value = proc.communicate()[0]
-
-        if not stdout_value.count('polly-prepare'):
-            sys.exit('Polly support not available in opt')
-    except OSError:
-        print
-        'error: opt cannot be executed: '
-        print
-        'failing command: \n' + " ".join(commandLine)
-        sys.exit(1)
-
-    commandLine = [pprof.clang(), '-v']
-    try:
-        subprocess.call(
-            commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        print
-        'error: clang cannot be executed: '
-        print
-        'failing command: \n' + " ".join(commandLine)
-        sys.exit(1)
-
-    commandLine = ['llc', '-help']
-    try:
-        subprocess.call(
-            commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except OSError:
-        print
-        'error: llc cannot be executed: '
-        print
-        'failing command: \n' + " ".join(commandLine)
-        sys.exit(1)
 
 
 def print_version(args):
@@ -214,14 +122,18 @@ def main():
     if sys.argv[0].endswith('++'):
         pprof.GCC = 'g++'
         pprof.CLANG = 'clang++'
-        pprof.LD_FLAGS = pprof.LD_FLAGS  # + ['-lstdc++']
 
-    if not (args.M or args.MM):
-        if args.c:
-            cc_c(args)
-        else:
-            cc(args)
+    if args.c:
+        compile_no_link(args, [])
+    else:
+        ir = pprof.link_ir(args, None)
+        pprof.link(ir, args)
 
 
 if __name__ == '__main__':
     main()
+
+#    if pprof.FORTRAN:
+#        commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so',
+#                       '-fplugin-arg-dragonegg-emit-ir',
+#                       '-S'] + args.unknown_args + args.files
