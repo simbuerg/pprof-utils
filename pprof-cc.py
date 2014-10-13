@@ -9,191 +9,207 @@ import traceback
 import pprof
 
 # Parse input arguments.
+
+
 def parseArguments():
-  description = 'polly-profcc is a simple replacement for compiler drivers like ' \
-                'gcc, clang or icc.'
+    description = 'polly-profcc is a simple replacement for compiler drivers like ' \
+                  'gcc, clang or icc.'
 
-  parser = argparse.ArgumentParser(description=description)
-  parser.add_argument('files'    , nargs='*')
-  parser.add_argument('-o'       , dest='output',
-                                   help='the name of the output file',
-                                   required=False)
-  parser.add_argument('-include' , action='append',
-                                   dest='extra_includes',
-                                   default=[],
-                                   help='implicit #include directives')
-  parser.add_argument('-I'       , action='append',
-                                   dest='incdirs',
-                                   default=[],
-                                   help='include search path')
-  parser.add_argument('-l'       , action='append',
-                                   dest='libraries',
-                                   default=[],
-                                   help='library flags to pass to the linker')
-  parser.add_argument('-L'       , action='append',
-                                   dest='librarypath',
-                                   default=[],
-                                   help='library paths to pass to the linker')
-  parser.add_argument('-S'       , action='store_true',
-                                   default='gnu89',
-                                   required=False)
-  parser.add_argument('-fPIC'    , action='store_true',
-                                   help='Position-Independent Code')
-  parser.add_argument('-fpic'    , action='store_true',
-                                   help='Position-Independent Code')
-  parser.add_argument('-prg'     , action='store_true',
-                                   help='Show the compilation progress')
-  parser.add_argument('-c'       , action='store_true',
-                                   help='compile and assemble, but do not link')
-  parser.add_argument('-MM'      , action='store_true',
-                                   help='dependencies file')
-  parser.add_argument('-MP'      , action='store_true',
-                                   help='dependencies target')
-  parser.add_argument('-MT'      , action='store_true',
-                                   help='dependencies target')
-  parser.add_argument('-MF'      , dest='depfile',
-                                   help='dependencies file')
-  parser.add_argument('-MMD'     , action='store_true',
-                                   help='create dependencies (implies -E)')
-  parser.add_argument('-MD'      , action='store_true',
-                                   help='create dependencies (implies -E)')
-  parser.add_argument('-M'       , action='store_true',
-                                   help='create dependencies')
-  parser.add_argument('-commands', help='print command lines executed',
-                      action='store_true')
-  parser.add_argument('-v', '--version', dest='version', action='store_true',
-                      help='print version info')
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('files', nargs='*')
+    parser.add_argument('-o', dest='output',
+                        help='the name of the output file',
+                        required=False)
+    parser.add_argument('-include', action='append',
+                        dest='extra_includes',
+                        default=[],
+                        help='implicit #include directives')
+    parser.add_argument('-I', action='append',
+                        dest='incdirs',
+                        default=[],
+                        help='include search path')
+    parser.add_argument('-l', action='append',
+                        dest='libraries',
+                        default=[],
+                        help='library flags to pass to the linker')
+    parser.add_argument('-L', action='append',
+                        dest='librarypath',
+                        default=[],
+                        help='library paths to pass to the linker')
+    parser.add_argument('-S', action='store_true',
+                        default='gnu89',
+                        required=False)
+    parser.add_argument('-fPIC', action='store_true',
+                        help='Position-Independent Code')
+    parser.add_argument('-fpic', action='store_true',
+                        help='Position-Independent Code')
+    parser.add_argument('-prg', action='store_true',
+                        help='Show the compilation progress')
+    parser.add_argument('-c', action='store_true',
+                        help='compile and assemble, but do not link')
+    parser.add_argument('-MM', action='store_true',
+                        help='dependencies file')
+    parser.add_argument('-MP', action='store_true',
+                        help='dependencies target')
+    parser.add_argument('-MT', action='store_true',
+                        help='dependencies target')
+    parser.add_argument('-MF', dest='depfile',
+                        help='dependencies file')
+    parser.add_argument('-MMD', action='store_true',
+                        help='create dependencies (implies -E)')
+    parser.add_argument('-MD', action='store_true',
+                        help='create dependencies (implies -E)')
+    parser.add_argument('-M', action='store_true',
+                        help='create dependencies')
+    parser.add_argument('-commands', help='print command lines executed',
+                        action='store_true')
+    parser.add_argument('-v', '--version', dest='version', action='store_true',
+                        help='print version info')
 
-  arguments, argv = parser.parse_known_args()
+    arguments, argv = parser.parse_known_args()
 
-  if argv:
-    arguments.unknown_args = filter(lambda x: x[0] == '-', argv)
-    arguments.files = arguments.files + filter(lambda x: x[0] != '-', argv)
-  else:
-    arguments.unknown_args = []
+    if argv:
+        arguments.unknown_args = filter(lambda x: x[0] == '-', argv)
+        arguments.files = arguments.files + filter(lambda x: x[0] != '-', argv)
+    else:
+        arguments.unknown_args = []
 
-  return arguments
+    return arguments
 
 # Compile, no pprof.linking
+
+
 def cc_c(args):
-  libs = args.libraries
-  flags = []
-  compile_no_link(args, flags)
+    libs = args.libraries
+    flags = []
+    compile_no_link(args, flags)
 
 # Default compilation
-def cc(args):
-  ir = pprof.link_ir(args, None)
 
-  if pprof.FORTRAN:
-    pprof.link_fortran(ir,args)
-  else:
-    pprof.link(ir,args)
+
+def cc(args):
+    ir = pprof.link_ir(args, None)
+
+    if pprof.FORTRAN:
+        pprof.link_fortran(ir, args)
+    else:
+        pprof.link(ir, args)
+
 
 def compile_no_link(args, flags):
-  if pprof.FORTRAN:
-    commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so', \
-                   '-fplugin-arg-dragonegg-emit-ir', \
-                   '-S'] + args.unknown_args + args.files
-  else:
-    implicitIncludes = ['-include' + x for x in args.extra_includes]
-    commandLine = [pprof.clang(), '-c', '-emit-llvm'] + \
-                  implicitIncludes
-    if args.M:
-      commandLine = commandLine + ['-M']
-    if args.depfile:
-      commandLine = commandLine + ['-MF', args.depfile]
-    commandLine = commandLine + args.unknown_args + args.files
+    if pprof.FORTRAN:
+        commandLine = ['gfortran', '-fplugin=/usr/lib64/llvm/dragonegg.so',
+                       '-fplugin-arg-dragonegg-emit-ir',
+                       '-S'] + args.unknown_args + args.files
+    else:
+        implicitIncludes = ['-include' + x for x in args.extra_includes]
+        commandLine = [pprof.clang(), '-c', '-emit-llvm'] + \
+            implicitIncludes
+        if args.M:
+            commandLine = commandLine + ['-M']
+        if args.depfile:
+            commandLine = commandLine + ['-MF', args.depfile]
+        commandLine = commandLine + args.unknown_args + args.files
 
-  out = ''
-  if args.output:
-    out = args.output
-  elif args.c and len(args.files) == 1:
-    out = os.path.splitext(args.files[0])[0]
-    out = os.path.basename(out) + '.o'
+    out = ''
+    if args.output:
+        out = args.output
+    elif args.c and len(args.files) == 1:
+        out = os.path.splitext(args.files[0])[0]
+        out = os.path.basename(out) + '.o'
 
-  if out:
-    commandLine = commandLine + ['-o', out]
-    pprof.log_exec(args, commandLine, 'Creating BITCODE (unoptimized)', False)
+    if out:
+        commandLine = commandLine + ['-o', out]
+        pprof.log_exec(
+            args, commandLine, 'Creating BITCODE (unoptimized)', False)
 
-    commandLine = ['opt', out, '-o', out]
-    pprof.log_exec(args, commandLine, 'Creating bitcode', False)
-  return args.output
+        commandLine = ['opt', out, '-o', out]
+        pprof.log_exec(args, commandLine, 'Creating bitcode', False)
+    return args.output
 
 # Create Makefile dependencies. clang is not capable of doing it, so we just
 # invoke GCC and continue our normale execution.
+
+
 def createDeps(args):
-  margv = sys.argv
-  margv[0] = pprof.GCC
-  commandLine = margv
+    margv = sys.argv
+    margv[0] = pprof.GCC
+    commandLine = margv
 
-  if args.prg:
-    margv.remove('-prg')
-  if args.commands:
-    margv.remove('-commands')
+    if args.prg:
+        margv.remove('-prg')
+    if args.commands:
+        margv.remove('-commands')
 
-  pprof.log_exec(args, commandLine, 'Create Makefile dependencies', False)
+    pprof.log_exec(args, commandLine, 'Create Makefile dependencies', False)
 
 # Basic executable check if Polly / Clang and LLC are in our range
+
+
 def checkExecutables(pollyLib):
-  commandLine = ['opt', '-load', pollyLib, '-help']
-  try:
-    proc = subprocess.Popen(commandLine, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout_value = proc.communicate()[0]
+    commandLine = ['opt', '-load', pollyLib, '-help']
+    try:
+        proc = subprocess.Popen(commandLine, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        stdout_value = proc.communicate()[0]
 
-    if not stdout_value.count('polly-prepare'):
-      sys.exit('Polly support not available in opt')
-  except OSError:
-    print 'error: opt cannot be executed: '
-    print 'failing command: \n' + " ".join(commandLine)
-    sys.exit(1)
+        if not stdout_value.count('polly-prepare'):
+            sys.exit('Polly support not available in opt')
+    except OSError:
+        print 'error: opt cannot be executed: '
+        print 'failing command: \n' + " ".join(commandLine)
+        sys.exit(1)
 
-  commandLine = [pprof.clang(), '-v']
-  try:
-    subprocess.call(commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  except OSError:
-    print 'error: clang cannot be executed: '
-    print 'failing command: \n' + " ".join(commandLine)
-    sys.exit(1)
+    commandLine = [pprof.clang(), '-v']
+    try:
+        subprocess.call(
+            commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError:
+        print 'error: clang cannot be executed: '
+        print 'failing command: \n' + " ".join(commandLine)
+        sys.exit(1)
 
-  commandLine = ['llc', '-help']
-  try:
-    subprocess.call(commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  except OSError:
-    print 'error: llc cannot be executed: '
-    print 'failing command: \n' + " ".join(commandLine)
-    sys.exit(1)
+    commandLine = ['llc', '-help']
+    try:
+        subprocess.call(
+            commandLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError:
+        print 'error: llc cannot be executed: '
+        print 'failing command: \n' + " ".join(commandLine)
+        sys.exit(1)
+
 
 def print_version(args):
-  pprof.log_exec(args, [pprof.GCC, '--version'],
-                 'Version check pass-through', False)
+    pprof.log_exec(args, [pprof.GCC, '--version'],
+                   'Version check pass-through', False)
+
 
 def main():
-  args = parseArguments()
+    args = parseArguments()
 
-  # PWN configure scripts:
-  if (args.version):
-    return print_version(args)
+    # PWN configure scripts:
+    if (args.version):
+        return print_version(args)
 
-  # Fortran
-  if sys.argv[0].endswith('fortran'):
-    pprof.FORTRAN = True
+    # Fortran
+    if sys.argv[0].endswith('fortran'):
+        pprof.FORTRAN = True
 
-  # C or C++?
-  if sys.argv[0].endswith('++'):
-    pprof.GCC='g++'
-    pprof.CLANG='clang++'
-    pprof.LD_FLAGS=pprof.LD_FLAGS #+ ['-lstdc++']
+    # C or C++?
+    if sys.argv[0].endswith('++'):
+        pprof.GCC = 'g++'
+        pprof.CLANG = 'clang++'
+        pprof.LD_FLAGS = pprof.LD_FLAGS  # + ['-lstdc++']
 
-  if args.M or args.MD or args.MM or \
-     args.MMD or args.MT or args.MP:
-    createDeps(args)
+    if args.M or args.MD or args.MM or \
+       args.MMD or args.MT or args.MP:
+        createDeps(args)
 
-  if not (args.M or args.MM):
-    if args.c:
-      cc_c(args)
-    else:
-      cc(args)
+    if not (args.M or args.MM):
+        if args.c:
+            cc_c(args)
+        else:
+            cc(args)
 
 if __name__ == '__main__':
-  main()
+    main()
